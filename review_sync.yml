@@ -1,0 +1,73 @@
+name: Sincronización de Reseñas — Miramelindo
+
+on:
+  # Cron: cada 2 horas (min hora día mes día-semana)
+  schedule:
+    - cron: "0 */2 * * *"
+
+  # Permite ejecutar manualmente desde GitHub Actions → Run workflow
+  workflow_dispatch:
+    inputs:
+      debug:
+        description: "Activar logs detallados"
+        required: false
+        default: "false"
+        type: boolean
+
+jobs:
+  sync-reviews:
+    name: Sincronizar reseñas GBP
+    runs-on: ubuntu-latest
+    timeout-minutes: 15   # Falla si tarda más de 15 min (detecta cuelgues)
+
+    steps:
+      # 1. Clonar el repositorio
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2. Configurar Python
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      # 3. Instalar dependencias
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      # 4. Correr el sync principal
+      - name: Ejecutar sincronización
+        env:
+          # Google OAuth
+          GOOGLE_CLIENT_ID:     ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+
+          # GBP
+          GBP_ACCOUNT_ID: ${{ secrets.GBP_ACCOUNT_ID }}
+          GBP_LOCATIONS:  ${{ secrets.GBP_LOCATIONS }}
+
+          # IA
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL:   "gemini-2.0-flash"
+
+          # Base de datos
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+
+          # Alertas
+          RESEND_API_KEY:    ${{ secrets.RESEND_API_KEY }}
+          ALERT_EMAIL_TO:    ${{ secrets.ALERT_EMAIL_TO }}
+          ALERT_EMAIL_FROM:  ${{ secrets.ALERT_EMAIL_FROM }}
+          ALERT_STAR_THRESHOLD: "3"
+
+          # Modo debug
+          PYTHONUNBUFFERED: "1"
+
+        run: python src/main.py
+
+      # 5. Notificar si el job falla (opcional — descomenta si quieres email en fallo)
+      # - name: Notificar fallo
+      #   if: failure()
+      #   run: echo "El job de sincronización falló. Revisar logs."

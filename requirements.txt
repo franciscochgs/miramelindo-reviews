@@ -1,0 +1,16 @@
+# Sistema de Reseñas Miramelindo — Dependencias Python
+# Instalar con: pip install -r requirements.txt
+
+# Google Auth y GBP API
+google-auth==2.29.0
+google-auth-oauthlib==1.2.0
+requests==2.31.0
+
+# Gemini (Google AI)
+google-generativeai==0.7.2
+
+# Supabase
+supabase==2.4.6
+
+# Alertas por email
+resend==2.1.0
