@@ -1,0 +1,43 @@
+name: Sincronización de Reseñas — Miramelindo
+
+on:
+  schedule:
+    - cron: "0 */2 * * *"
+  workflow_dispatch:
+
+jobs:
+  sync-reviews:
+    name: Sincronizar reseñas GBP
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Ejecutar sincronización
+        env:
+          GOOGLE_CLIENT_ID:     ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+          GBP_ACCOUNT_ID:       ${{ secrets.GBP_ACCOUNT_ID }}
+          GBP_LOCATIONS:        ${{ secrets.GBP_LOCATIONS }}
+          GEMINI_API_KEY:       ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL:         "gemini-2.0-flash"
+          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:         ${{ secrets.SUPABASE_KEY }}
+          RESEND_API_KEY:       ${{ secrets.RESEND_API_KEY }}
+          ALERT_EMAIL_TO:       ${{ secrets.ALERT_EMAIL_TO }}
+          ALERT_EMAIL_FROM:     ${{ secrets.ALERT_EMAIL_FROM }}
+          ALERT_STAR_THRESHOLD: "3"
+          PYTHONUNBUFFERED:     "1"
+        run: python main.py
