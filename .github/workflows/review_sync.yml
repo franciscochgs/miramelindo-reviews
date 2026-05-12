@@ -53,12 +53,19 @@ jobs:
               prop = loc.get("property", "?")
               lid = loc.get("location_id", "")
 
-              if "XXXXXXXXXX" in lid or "XXXX" in lid:
-                  errors.append(f"  ❌ {name} ({prop}): tiene PLACEHOLDER")
+              # Diagnóstico de formato
+              lid_len = len(lid)
+              lid_head = lid[:15] if lid_len >= 15 else lid
+              lid_tail = lid[-10:] if lid_len >= 10 else lid
+
+              if not lid:
+                  errors.append(f"  ❌ {name} ({prop}): location_id VACÍO")
+              elif "XXXXXXXXXX" in lid or "XXXX" in lid:
+                  errors.append(f"  ❌ {name} ({prop}): tiene PLACEHOLDER (head='{lid_head}', tail='{lid_tail}', len={lid_len})")
               elif not lid.startswith("accounts/"):
-                  errors.append(f"  ❌ {name} ({prop}): formato inválido (no empieza con 'accounts/')")
+                  errors.append(f"  ❌ {name} ({prop}): NO empieza con 'accounts/' (head='{lid_head}', tail='{lid_tail}', len={lid_len})")
               elif "/locations/" not in lid:
-                  errors.append(f"  ❌ {name} ({prop}): falta '/locations/' en la ruta")
+                  errors.append(f"  ❌ {name} ({prop}): falta '/locations/' (head='{lid_head}', tail='{lid_tail}', len={lid_len})")
               else:
                   tail = lid.split("/")[-1][-4:] if lid.split("/")[-1] else "?"
                   print(f"  ✓ {name} ({prop}): ...{tail}")
@@ -67,6 +74,7 @@ jobs:
               print("\n--- ERRORES ---")
               for e in errors:
                   print(e)
+              print("\n📋 Formato esperado: 'accounts/<ACCOUNT_ID>/locations/<LOCATION_ID>'")
               sys.exit(1)
 
           print("\n✅ GBP_LOCATIONS está bien configurado")
