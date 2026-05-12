@@ -16,7 +16,7 @@ STAR_RATING_MAP = {
 }
 
 TOKEN_URL = "https://oauth2.googleapis.com/token"
-REVIEWS_BASE = "https://mybusinessreviews.googleapis.com/v1"
+REVIEWS_BASE = "https://mybusiness.googleapis.com/v4"
 
 
 class GBPClient:
