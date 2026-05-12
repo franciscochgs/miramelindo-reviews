@@ -75,7 +75,7 @@ class GBPClient:
         Returns:
             Lista de reseñas normalizadas con starRatingInt como número entero.
         """
-        url = f"{REVIEWS_BASE}/accounts/{config.gbp_account_id}/locations/{location_id}/reviews"
+        url = f"{REVIEWS_BASE}/{location_id}/reviews"
         all_reviews: list[dict] = []
         page_token: str | None  = None
         page_num   = 0

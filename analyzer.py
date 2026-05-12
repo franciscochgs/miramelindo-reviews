@@ -22,7 +22,7 @@ Glamping, Cabañas del Río y Restaurante. El tono de la marca es: cálido, \
 profesional, directo y enfocado en ofrecer experiencias personalizadas.
 
 Analiza la siguiente reseña de Google y responde ÚNICAMENTE con un objeto \
-JSON válido.
+JSON válido que siga exactamente el esquema provisto.
 
 --- DATOS DE LA RESEÑA ---
 Propiedad : {property_name}
@@ -31,31 +31,37 @@ Estrellas  : {stars} / 5
 Reseña     : "{review_text}"
 --------------------------
 
-Devuelve EXACTAMENTE este esquema:
+--- ESQUEMA JSON REQUERIDO ---
 {{
-  "sentimiento": "positivo" | "neutro" | "negativo",
-  "temas": ["array de temas detectados — posibles valores: limpieza, servicio, \
-comida, instalaciones, precio, ubicación, personal, check-in, check-out, \
-spa, piscina, habitación, desayuno, naturaleza, ruido, wifi, estacionamiento"],
-  "urgencia": "alta" | "media" | "baja",
-  "razon_urgencia": "string o null — explica brevemente si urgencia es alta",
-  "staff_mencionado": ["nombres del personal mencionados — lista vacía si ninguno"],
-  "queja_principal": "descripción de la queja más importante o null",
-  "elogio_principal": "descripción del elogio más importante o null",
-  "borrador_respuesta": "Respuesta en español neutro, cálida y profesional, \
-de 2-3 oraciones. Si es negativa: reconoce el problema sin excusas y ofrece \
-solución o invitación a comunicarse directamente. Si es positiva: agradece \
-con calidez y menciona algo específico de la reseña. Firma siempre como \
-'El equipo de Miramelindo'.",
-  "requiere_accion": true | false
+  "sentimiento": "positivo",
+  "temas": ["limpieza", "servicio"],
+  "urgencia": "baja",
+  "razon_urgencia": null,
+  "staff_mencionado": [],
+  "queja_principal": null,
+  "elogio_principal": null,
+  "borrador_respuesta": "Gracias por su visita.",
+  "requiere_accion": false
 }}
 
-Criterios de urgencia ALTA (cualquiera de los siguientes):
-- Problemas de salud, seguridad o higiene graves
-- Mención de plagas o fauna nociva
-- Acusaciones de fraude o cobros incorrectos
-- Experiencia completamente negativa con detalles severos y específicos
-- Amenaza de denuncia pública o legal\
+--- INSTRUCCIONES DE CAMPOS ---
+- sentimiento: "positivo" | "neutro" | "negativo".
+- temas: Array de strings. Posibles valores: limpieza, servicio, comida, instalaciones, precio, ubicación, personal, check-in, check-out, spa, piscina, habitación, desayuno, naturaleza, ruido, wifi, estacionamiento.
+- urgencia: "alta" | "media" | "baja".
+- razon_urgencia: string explicando si urgencia es alta, sino null.
+- staff_mencionado: array con nombres del personal mencionados.
+- queja_principal: descripción de la queja más importante o null.
+- elogio_principal: descripción del elogio más importante o null.
+- borrador_respuesta: Respuesta en español neutro, cálida y profesional, de 2-3 oraciones. Si es negativa: reconoce el problema sin excusas y ofrece solución o invitación a comunicarse directamente. Si es positiva: agradece con calidez y menciona algo específico. Firma siempre como 'El equipo de Miramelindo'.
+- requiere_accion: true | false.
+
+--- CRITERIOS DE URGENCIA ALTA ---
+Cualquiera de los siguientes:
+- Problemas de salud, seguridad o higiene graves.
+- Mención de plagas o fauna nociva.
+- Acusaciones de fraude o cobros incorrectos.
+- Experiencia completamente negativa con detalles severos y específicos.
+- Amenaza de denuncia pública o legal.\
 """
 
 

@@ -15,8 +15,7 @@ class Config:
         self.google_refresh_token = self._require("GOOGLE_REFRESH_TOKEN")
 
         # Google Business Profile
-        self.gbp_account_id = os.environ.get("GBP_ACCOUNT_ID", "")
-        # Formato JSON: [{"name":"Hotel Spa","property":"hotel","location_id":"1234567890"}, ...]
+        # Formato JSON: [{"name":"Hotel Spa","property":"hotel","location_id":"accounts/X/locations/Y"}, ...]
         self.locations = json.loads(self._require("GBP_LOCATIONS"))
 
         # IA
