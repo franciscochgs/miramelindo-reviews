@@ -5,13 +5,9 @@ google-auth-httplib2==0.2.0
 requests==2.31.0
 # Gemini AI (nuevo SDK)
 google-genai==0.3.0
-# Base de datos
-supabase==2.4.6
-postgrest==0.16.11
-gotrue==2.12.0
-realtime==1.0.6
-storage3==0.7.7
-supafunc==0.4.7
-httpx==0.27.2
+# Base de datos (versión moderna con realtime 2.x compatible con websockets>=13)
+supabase==2.9.1
+# Forzar websockets compatible (evita backtracking)
+websockets>=13.0,<15.0
 # Email
 resend==2.1.0
