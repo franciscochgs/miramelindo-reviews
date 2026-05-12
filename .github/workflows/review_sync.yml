@@ -1,8 +1,8 @@
 name: Sincronización de Reseñas — Miramelindo
 
 on:
-  schedule:
-    - cron: "0 */2 * * *"
+  # schedule:
+  #   - cron: '0 */2 * * *'   # Desactivado mientras esperamos aprobación de cuota GBP API
   workflow_dispatch:
 
 jobs:
