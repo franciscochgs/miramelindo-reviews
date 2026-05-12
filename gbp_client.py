@@ -75,8 +75,7 @@ class GBPClient:
         Returns:
             Lista de reseñas normalizadas con starRatingInt como número entero.
         """
-        loc = location_id if location_id.startswith("locations/") else f"locations/{location_id}"
-        url = f"{REVIEWS_BASE}/{loc}/reviews"
+        url = f"{REVIEWS_BASE}/accounts/{config.gbp_account_id}/locations/{location_id}/reviews"
         all_reviews: list[dict] = []
         page_token: str | None  = None
         page_num   = 0
