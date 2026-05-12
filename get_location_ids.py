@@ -2,13 +2,11 @@
 get_location_ids.py — Descubrir IDs de cuentas y ubicaciones GBP
 ==================================================================
 
-Ejecuta DESPUÉS de oauth_setup.py.
-Lista todas tus cuentas y ubicaciones de Google Business Profile
-para que puedas copiar los IDs correctos al configurar GBP_LOCATIONS.
+Prueba MÚLTIPLES endpoints porque Google migró APIs:
+  1. mybusinessaccountmanagement.googleapis.com/v1 (nueva)
+  2. mybusiness.googleapis.com/v4 (vieja, deprecated pero a veces activa)
 
-Usa las APIs modernas (la v4 fue apagada):
-  - My Business Account Management API (cuentas)
-  - My Business Business Information API (ubicaciones)
+Imprime diagnóstico claro de cada intento.
 """
 
 import json
@@ -21,10 +19,12 @@ CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
 CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET")
 REFRESH_TOKEN = os.environ.get("GOOGLE_REFRESH_TOKEN")
 
-ACCOUNTS_BASE = "https://mybusinessaccountmanagement.googleapis.com/v1"
+# Endpoints candidatos
+ENDPOINTS = {
+    "v1_account_management": "https://mybusinessaccountmanagement.googleapis.com/v1",
+    "v4_my_business": "https://mybusiness.googleapis.com/v4",
+}
 INFO_BASE = "https://mybusinessbusinessinformation.googleapis.com/v1"
-
-# Campos que pedimos para cada ubicación (la API exige readMask)
 LOCATION_READ_MASK = "name,title,storefrontAddress"
 
 
@@ -43,6 +43,70 @@ def get_access_token() -> str:
     return response.json()["access_token"]
 
 
+def try_list_accounts(headers: dict) -> list | None:
+    """Prueba ambos endpoints. Devuelve la lista de cuentas o None si fallaron todos."""
+
+    for label, base in ENDPOINTS.items():
+        url = f"{base}/accounts"
+        print(f"\n🔍 Probando {label}: {url}")
+
+        try:
+            resp = requests.get(url, headers=headers, timeout=15)
+        except Exception as e:
+            print(f"   ❌ Error de red: {e}")
+            continue
+
+        print(f"   Status: {resp.status_code}")
+
+        if resp.status_code == 200:
+            data = resp.json()
+            accounts = data.get("accounts", [])
+            print(f"   ✅ Éxito: {len(accounts)} cuenta(s) encontrada(s)")
+            return accounts
+
+        # Diagnóstico de errores comunes
+        try:
+            err_body = resp.json()
+            err_msg = err_body.get("error", {}).get("message", "")[:200]
+            print(f"   ❌ Error: {err_msg}")
+        except Exception:
+            print(f"   ❌ Body: {resp.text[:200]}")
+
+    return None
+
+
+def list_locations_v1(account_name: str, headers: dict) -> list:
+    """Lista ubicaciones usando la API Business Information v1."""
+    resp = requests.get(
+        f"{INFO_BASE}/{account_name}/locations",
+        headers=headers,
+        params={"readMask": LOCATION_READ_MASK, "pageSize": 100},
+        timeout=15,
+    )
+    if resp.status_code == 200:
+        return resp.json().get("locations", [])
+
+    print(f"   ⚠️ v1 Business Information falló: {resp.status_code}")
+    print(f"   {resp.text[:300]}")
+    return []
+
+
+def list_locations_v4(account_name: str, headers: dict) -> list:
+    """Lista ubicaciones usando la API My Business v4 (legacy)."""
+    resp = requests.get(
+        f"{ENDPOINTS['v4_my_business']}/{account_name}/locations",
+        headers=headers,
+        params={"pageSize": 100},
+        timeout=15,
+    )
+    if resp.status_code == 200:
+        return resp.json().get("locations", [])
+
+    print(f"   ⚠️ v4 My Business falló: {resp.status_code}")
+    print(f"   {resp.text[:300]}")
+    return []
+
+
 def main():
     missing = [k for k, v in {
         "GOOGLE_CLIENT_ID": CLIENT_ID,
@@ -53,63 +117,49 @@ def main():
         print(f"❌ Variables de entorno faltantes: {', '.join(missing)}")
         sys.exit(1)
 
-    print("\nObteniendo access token...")
+    print("Obteniendo access token...")
     token = get_access_token()
     headers = {"Authorization": f"Bearer {token}"}
 
-    # ------------------------------------------------------------------
-    # Listar cuentas (API Account Management v1)
-    # ------------------------------------------------------------------
-    print("Consultando cuentas de Google Business Profile (v1)...\n")
-    resp = requests.get(f"{ACCOUNTS_BASE}/accounts", headers=headers, timeout=15)
+    print("\n" + "=" * 60)
+    print("FASE 1: LISTAR CUENTAS")
+    print("=" * 60)
 
-    if resp.status_code != 200:
-        print(f"❌ Error consultando cuentas: {resp.status_code}")
-        print(resp.text[:500])
-        sys.exit(1)
-
-    accounts = resp.json().get("accounts", [])
+    accounts = try_list_accounts(headers)
 
     if not accounts:
-        print("❌ No se encontraron cuentas de GBP.")
+        print("\n❌ Ningún endpoint funcionó para listar cuentas.")
+        print("   Hay que solicitar aumento de cuota o usar fallback manual.")
         sys.exit(1)
+
+    print("\n" + "=" * 60)
+    print("FASE 2: LISTAR UBICACIONES DE CADA CUENTA")
+    print("=" * 60)
 
     all_locations = []
 
     for account in accounts:
-        account_name = account["name"]  # "accounts/1234567890"
+        account_name = account["name"]
         account_label = account.get("accountName", account_name)
 
-        print(f"📁 Cuenta: {account_label}")
-        print(f"   ID    : {account_name}\n")
+        print(f"\n📁 Cuenta: {account_label}")
+        print(f"   ID    : {account_name}")
 
-        # ------------------------------------------------------------------
-        # Listar ubicaciones (API Business Information v1)
-        # ------------------------------------------------------------------
-        loc_resp = requests.get(
-            f"{INFO_BASE}/{account_name}/locations",
-            headers=headers,
-            params={
-                "readMask": LOCATION_READ_MASK,
-                "pageSize": 100,
-            },
-            timeout=15,
-        )
-
-        if loc_resp.status_code != 200:
-            print(f"   ⚠️ Error listando ubicaciones: {loc_resp.status_code}")
-            print(f"   {loc_resp.text[:300]}")
-            continue
-
-        locations = loc_resp.json().get("locations", [])
+        # Intentar v1 primero, luego v4
+        print(f"\n   Intentando listar locations con v1 Business Information...")
+        locations = list_locations_v1(account_name, headers)
 
         if not locations:
-            print("   (Sin ubicaciones en esta cuenta)\n")
+            print(f"   Intentando listar locations con v4 My Business...")
+            locations = list_locations_v4(account_name, headers)
+
+        if not locations:
+            print(f"   ❌ No se pudieron listar locations en esta cuenta.")
             continue
 
+        print(f"   ✅ {len(locations)} ubicacion(es) encontrada(s)\n")
+
         for loc in locations:
-            # En la v1 los locations vienen como "locations/<id>" (sin el prefijo accounts/)
-            # Hay que componer el resource name completo manualmente
             raw_name = loc["name"]
             if raw_name.startswith("accounts/"):
                 full_id = raw_name
@@ -118,9 +168,10 @@ def main():
             else:
                 full_id = f"{account_name}/locations/{raw_name}"
 
-            title = loc.get("title", full_id)
+            title = loc.get("title") or loc.get("locationName") or full_id
+
+            sa = loc.get("storefrontAddress", {}) or loc.get("address", {})
             address = ""
-            sa = loc.get("storefrontAddress", {})
             if sa:
                 lines = sa.get("addressLines", [])
                 if lines:
@@ -130,7 +181,6 @@ def main():
             print(f"      location_id: {full_id}")
             if address:
                 print(f"      Dirección  : {address}")
-            print()
 
             all_locations.append({
                 "name": title,
@@ -138,12 +188,16 @@ def main():
                 "location_id": full_id,
             })
 
+    if not all_locations:
+        print("\n❌ No se encontraron ubicaciones en ninguna cuenta.")
+        sys.exit(1)
+
     # ------------------------------------------------------------------
     # Generar el JSON listo para GBP_LOCATIONS
     # ------------------------------------------------------------------
-    print("=" * 60)
-    print("COPIA Y EDITA ESTE JSON PARA TU SECRET GBP_LOCATIONS")
-    print("(Cambia el campo 'property' por el valor correcto)")
+    print("\n" + "=" * 60)
+    print("JSON LISTO PARA EL SECRET GBP_LOCATIONS")
+    print("(Verifica el campo 'property' antes de pegarlo)")
     print("=" * 60)
 
     PROPERTY_MAP = {
@@ -161,9 +215,10 @@ def main():
                 loc["property"] = prop_key
                 break
 
+    print("\nFormato legible:")
     print(json.dumps(all_locations, indent=2, ensure_ascii=False))
-    print("\nPega este JSON (en una sola línea) como el valor del secret GBP_LOCATIONS.")
-    print("\nEjemplo de valor compacto para el secret:")
+
+    print("\nFormato compacto para pegar en el secret (UNA LÍNEA):")
     print(json.dumps(all_locations, ensure_ascii=False))
 
 
