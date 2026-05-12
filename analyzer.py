@@ -5,7 +5,8 @@ Envía cada reseña al LLM y devuelve un JSON estructurado.
 import json
 import logging
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types # Importación añadida para configuración de tipos
 
 from config import config
 
@@ -15,13 +16,13 @@ logger = logging.getLogger(__name__)
 # Prompt de análisis — tono y contexto Miramelindo
 # ------------------------------------------------------------------
 ANALYSIS_PROMPT = """\
-Eres el asistente de reputación de Miramelindo, un resort tropical \
-en Costa Rica que incluye Hotel Spa, Glamping, Cabañas del Río y Restaurante. \
-El tono de la marca es: cálido, profesional, cercano, orgulloso de la \
-naturaleza costarricense y del servicio personalizado.
+Eres el asistente de reputación de Miramelindo, un grupo de hospitalidad \
+boutique y spa en Baños de Agua Santa, Ecuador, que incluye Hotel Spa, \
+Glamping, Cabañas del Río y Restaurante. El tono de la marca es: cálido, \
+profesional, directo y enfocado en ofrecer experiencias personalizadas.
 
 Analiza la siguiente reseña de Google y responde ÚNICAMENTE con un objeto \
-JSON válido (sin bloques de código markdown, sin texto adicional).
+JSON válido.
 
 --- DATOS DE LA RESEÑA ---
 Propiedad : {property_name}
@@ -30,7 +31,7 @@ Estrellas  : {stars} / 5
 Reseña     : "{review_text}"
 --------------------------
 
-Devuelve EXACTAMENTE este esquema (sin campos extra):
+Devuelve EXACTAMENTE este esquema:
 {{
   "sentimiento": "positivo" | "neutro" | "negativo",
   "temas": ["array de temas detectados — posibles valores: limpieza, servicio, \
@@ -41,7 +42,7 @@ spa, piscina, habitación, desayuno, naturaleza, ruido, wifi, estacionamiento"],
   "staff_mencionado": ["nombres del personal mencionados — lista vacía si ninguno"],
   "queja_principal": "descripción de la queja más importante o null",
   "elogio_principal": "descripción del elogio más importante o null",
-  "borrador_respuesta": "Respuesta en español, cálida y profesional, \
+  "borrador_respuesta": "Respuesta en español neutro, cálida y profesional, \
 de 2-3 oraciones. Si es negativa: reconoce el problema sin excusas y ofrece \
 solución o invitación a comunicarse directamente. Si es positiva: agradece \
 con calidez y menciona algo específico de la reseña. Firma siempre como \
@@ -62,8 +63,7 @@ class ReviewAnalyzer:
     """Analiza reseñas usando Gemini y devuelve JSON estructurado."""
 
     def __init__(self):
-        genai.configure(api_key=config.gemini_api_key)
-        self.model = genai.GenerativeModel(config.gemini_model)
+        self.client = genai.Client(api_key=config.gemini_api_key)
 
     def analyze(self, review: dict, property_name: str) -> dict:
         """
@@ -74,7 +74,6 @@ class ReviewAnalyzer:
         author_name = review.get("reviewer", {}).get("displayName", "Anónimo")
         stars       = review.get("starRatingInt", 3)
 
-        # Si la reseña no tiene texto, análisis básico por estrellas
         if not review_text:
             logger.info("  Reseña sin texto — usando análisis por estrellas")
             return self._star_only_analysis(stars)
@@ -83,25 +82,23 @@ class ReviewAnalyzer:
             property_name=property_name,
             author_name=author_name,
             stars=stars,
-            review_text=review_text[:2000],  # Cap de seguridad de tokens
+            review_text=review_text[:2000],
         )
 
         try:
-            response = self.model.generate_content(prompt)
+            # Implementación de GenerateContentConfig para forzar salida JSON limpia
+            response = self.client.models.generate_content(
+                model=config.gemini_model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    temperature=0.2 # Temperatura baja para análisis más consistentes
+                )
+            )
+            
             raw = response.text.strip()
-
-            # Limpiar si Gemini añadió bloques ```json ... ```
-            if "```" in raw:
-                parts = raw.split("```")
-                for part in parts:
-                    part = part.strip()
-                    if part.startswith("json"):
-                        part = part[4:].strip()
-                    if part.startswith("{"):
-                        raw = part
-                        break
-
-            result = json.loads(raw)
+            result = json.loads(raw) # Ya no necesitamos limpiar el markdown manual
+            
             logger.info(f"  Análisis OK — sentimiento: {result.get('sentimiento')} | urgencia: {result.get('urgencia')}")
             return result
 
