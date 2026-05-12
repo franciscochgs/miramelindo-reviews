@@ -24,6 +24,54 @@ jobs:
       - name: Instalar dependencias
         run: pip install -r requirements.txt
 
+      - name: Validate GBP_LOCATIONS secret
+        env:
+          GBP_LOCATIONS: ${{ secrets.GBP_LOCATIONS }}
+        run: |
+          python <<'EOF'
+          import json, os, sys
+
+          raw = os.environ.get("GBP_LOCATIONS", "")
+
+          if not raw:
+              print("❌ GBP_LOCATIONS está VACÍO")
+              sys.exit(1)
+
+          print(f"✓ Longitud del secret: {len(raw)} chars")
+
+          try:
+              data = json.loads(raw)
+          except json.JSONDecodeError as e:
+              print(f"❌ JSON inválido: {e}")
+              sys.exit(1)
+
+          print(f"✓ JSON válido, {len(data)} ubicaciones")
+
+          errors = []
+          for i, loc in enumerate(data):
+              name = loc.get("name", f"item-{i}")
+              prop = loc.get("property", "?")
+              lid = loc.get("location_id", "")
+
+              if "XXXXXXXXXX" in lid or "XXXX" in lid:
+                  errors.append(f"  ❌ {name} ({prop}): tiene PLACEHOLDER")
+              elif not lid.startswith("accounts/"):
+                  errors.append(f"  ❌ {name} ({prop}): formato inválido (no empieza con 'accounts/')")
+              elif "/locations/" not in lid:
+                  errors.append(f"  ❌ {name} ({prop}): falta '/locations/' en la ruta")
+              else:
+                  tail = lid.split("/")[-1][-4:] if lid.split("/")[-1] else "?"
+                  print(f"  ✓ {name} ({prop}): ...{tail}")
+
+          if errors:
+              print("\n--- ERRORES ---")
+              for e in errors:
+                  print(e)
+              sys.exit(1)
+
+          print("\n✅ GBP_LOCATIONS está bien configurado")
+          EOF
+
       - name: Ejecutar sincronización
         env:
           GOOGLE_CLIENT_ID:     ${{ secrets.GOOGLE_CLIENT_ID }}
