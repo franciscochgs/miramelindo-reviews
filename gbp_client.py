@@ -16,7 +16,7 @@ STAR_RATING_MAP = {
 }
 
 TOKEN_URL = "https://oauth2.googleapis.com/token"
-GBP_BASE  = "https://mybusiness.googleapis.com/v4"
+REVIEWS_BASE = "https://mybusinessreviews.googleapis.com/v1"
 
 
 class GBPClient:
@@ -75,7 +75,8 @@ class GBPClient:
         Returns:
             Lista de reseñas normalizadas con starRatingInt como número entero.
         """
-        url        = f"{GBP_BASE}/{location_id}/reviews"
+        loc = location_id if location_id.startswith("locations/") else f"locations/{location_id}"
+url = f"{REVIEWS_BASE}/{loc}/reviews"
         all_reviews: list[dict] = []
         page_token: str | None  = None
         page_num   = 0
