@@ -41,13 +41,18 @@ def run():
 
     # Inicializar componentes
     try:
-        gbp      = GBPClient()
-        db       = Database()
-        analyzer = ReviewAnalyzer()
-        alerts   = AlertSystem()
+        gbp    = GBPClient()
+        db     = Database()
+        alerts = AlertSystem()
     except Exception as e:
         logger.error(f"Error inicializando componentes: {e}")
         sys.exit(1)
+
+    try:
+        analyzer = ReviewAnalyzer()
+    except Exception as e:
+        logger.warning(f"Gemini no disponible ({e}). Usando análisis básico por estrellas.")
+        analyzer = None
 
     total_new      = 0
     total_alerts   = 0
@@ -84,7 +89,7 @@ def run():
                 logger.info(f"\n  Procesando: {author} — {'⭐' * stars}")
 
                 # Analizar con Gemini
-                analysis = analyzer.analyze(review, prop_name)
+                analysis = analyzer.analyze(review, prop_name) if analyzer else {}
 
                 # Guardar en Supabase
                 saved = db.save_review(review, analysis, location)
