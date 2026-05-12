@@ -41,11 +41,24 @@ def run():
 
     # Inicializar componentes
     try:
-        gbp    = GBPClient()
-        db     = Database()
-        alerts = AlertSystem()
+        gbp = GBPClient()
+        logger.info("GBPClient OK")
     except Exception as e:
-        logger.error(f"Error inicializando componentes: {e}")
+        logger.error(f"Error en GBPClient: {e}", exc_info=True)
+        sys.exit(1)
+
+    try:
+        db = Database()
+        logger.info("Database OK")
+    except Exception as e:
+        logger.error(f"Error en Database: {e}", exc_info=True)
+        sys.exit(1)
+
+    try:
+        alerts = AlertSystem()
+        logger.info("AlertSystem OK")
+    except Exception as e:
+        logger.error(f"Error en AlertSystem: {e}", exc_info=True)
         sys.exit(1)
 
     try:
